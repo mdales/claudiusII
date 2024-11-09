@@ -1,0 +1,4 @@
+(library
+ (name claudiusII)
+ (public_name claudiusII)
+ (libraries tsdl))
