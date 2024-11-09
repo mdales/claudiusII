@@ -17,16 +17,17 @@ let sdl_init (width : int) (height : int) (title : string) (make_fullscreen : bo
   Sdl.create_window ~w:width ~h:height title Sdl.Window.(if make_fullscreen then fullscreen else windowed) >>= fun w ->
   Sdl.create_renderer ~flags:Sdl.Renderer.(accelerated + presentvsync) w >>= fun r ->
   Sdl.show_cursor (not make_fullscreen) >|= fun _ -> (w, r)
-  
-let renderer_set_color (rend : Sdl.renderer) (palette : Palette.t) (c : int)  = 
+
+let renderer_set_color (rend : Sdl.renderer) (palette : Palette.t) (c : int)  =
   let col = Int32.to_int (Palette.index_to_rgb palette c) in
   let r = col land 0xFF
-  and g = (col lsl 8) land 0xFF
-  and b = (col lsl 16) land 0xFF
-  and a = (col lsl 24) land 0xFF in
+  and g = (col lsr 8) land 0xFF
+  and b = (col lsr 16) land 0xFF
+  (* and a = (col lsl 24) land 0xFF in*)
+  and a = 0xFF in
   match (Sdl.set_render_draw_color rend r g b a) with
   | Ok () -> ()
-  | Error (`Msg e) -> failwith (Printf.sprintf "failed to set color: %s" e) 
+  | Error (`Msg e) -> failwith (Printf.sprintf "failed to set color: %s" e)
 
 let render_primitive (rend : Sdl.renderer) (palette : Palette.t) (p : Primitives.t) =
   match p with
@@ -39,14 +40,20 @@ let render_primitive (rend : Sdl.renderer) (palette : Palette.t) (p : Primitives
     Sdl.render_draw_line rend a.x a.y b.x b.y
   )
   | _ -> Ok ()
-  
 
 let render_primitives (rend : Sdl.renderer) (palette : Palette.t) (pl : Primitives.t list) =
-  List.fold_left (fun acc prim -> 
+  List.fold_left (fun acc prim ->
     match acc with
     | Ok () -> render_primitive rend palette prim
     | _ -> acc
    ) (Ok ()) pl
+
+let render (rend : Sdl.renderer) (s : Screen.t) (pl : Primitives.t list) : unit Sdl.result =
+  let pal = Screen.palette s in
+  renderer_set_color rend pal 0;
+  Sdl.render_clear rend >>= fun () ->
+  render_primitives rend pal pl >>= fun () ->
+  Sdl.render_present rend; Ok ()
 
 (* ----- *)
 
@@ -73,7 +80,7 @@ let run (title : string) (boot : boot_func option) (tick : tick_func) (s : Scree
       | None -> []
       | Some bfunc -> bfunc s
       in
-      
+
       ignore(render_primitives r (Screen.palette s) initial_scene);
 
       let e = Sdl.Event.create () in
@@ -88,9 +95,7 @@ let run (title : string) (boot : boot_func option) (tick : tick_func) (s : Scree
 
         let primitives = tick t s () keys in
 
-        
-
-        match render_primitives r (Screen.palette s) primitives with
+        match render r s primitives with
         | Error (`Msg e) -> Sdl.log "Boot error: %s" e
         | Ok () -> (
           let exit, keys =
