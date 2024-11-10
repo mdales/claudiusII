@@ -6,7 +6,6 @@ module KeyCodeSet = Set.Make(Int)
 type boot_func = Screen.t -> Primitives.t list
 type tick_func = int -> Screen.t -> unit -> KeyCodeSet.t -> Primitives.t list
 
-
 (* ----- *)
 
 let (>>=) = Result.bind
@@ -19,12 +18,7 @@ let sdl_init (width : int) (height : int) (title : string) (make_fullscreen : bo
   Sdl.show_cursor (not make_fullscreen) >|= fun _ -> (w, r)
 
 let renderer_set_color (rend : Sdl.renderer) (palette : Palette.t) (c : int)  =
-  let col = Int32.to_int (Palette.index_to_rgb palette c) in
-  let r = col land 0xFF
-  and g = (col lsr 8) land 0xFF
-  and b = (col lsr 16) land 0xFF
-  (* and a = (col lsl 24) land 0xFF in*)
-  and a = 0xFF in
+  let r, g, b, a =  Palette.index_to_rgb palette c in
   match (Sdl.set_render_draw_color rend r g b a) with
   | Ok () -> ()
   | Error (`Msg e) -> failwith (Printf.sprintf "failed to set color: %s" e)
@@ -38,6 +32,20 @@ let render_primitive (rend : Sdl.renderer) (palette : Palette.t) (p : Primitives
   | Line (a, b, c) -> (
     renderer_set_color rend palette c;
     Sdl.render_draw_line rend a.x a.y b.x b.y
+  )
+  | Rect (a, b, c) -> (
+    renderer_set_color rend palette c;
+    Sdl.render_draw_rect rend (Some (Sdl.Rect.create a.x a.y (b.x - a.x) (b.y - a.y)))
+  )
+  | Polygon (points, c) -> (
+    renderer_set_color rend palette c;
+    Array.map (fun (p : Primitives.point) -> Sdl.Point.create p.x p.y) points |>
+    Array.to_list |>
+    Sdl.render_draw_lines rend
+  )
+  | FilledRect (a, b, c) -> (
+    renderer_set_color rend palette c;
+    Sdl.render_fill_rect rend (Some (Sdl.Rect.create a.x a.y (b.x - a.x) (b.y - a.y)))
   )
   | _ -> Ok ()
 

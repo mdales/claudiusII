@@ -10,7 +10,7 @@ type t =
 | FilledCircle of point * float * int
 | Line of point * point * int
 | Point of point * int
-| Polygon of point list * int
+| Polygon of point array * int
 | FilledPolygon of point list * int
 | Rect of point * point * int
 | FilledRect of point * point * int

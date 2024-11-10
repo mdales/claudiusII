@@ -21,10 +21,10 @@ val load_tic80_palette: string -> t
 
 (** {1 Conversion} *)
 
-val to_list: t -> int list
+val to_list: t -> (int * int * int * int) list
 (** [to_list palette] Converts the provided [palette] to a list of 24bpp RGB entries. *)
 
-val of_list: int list -> t
+val of_list: (int * int * int * int) list -> t
 (** [of_list list] Converts the provided [list] of 24bpp RGB entries to a palette. Raises
     [Invalid_argument] if list size is zero. *)
 
@@ -33,5 +33,5 @@ val of_list: int list -> t
 val size: t -> int
 (** [size palette] Returns the number of entries in the palette. *)
 
-val index_to_rgb: t -> int -> int32
+val index_to_rgb: t -> int -> (int * int * int * int)
 (** [index_to_rgb palette index] Will return the 24bpp RGB prepesentation of a [palette] entry at position [index]. As per other fantasy console systems, the index value will be wrapped if it is above or below the palette size. *)

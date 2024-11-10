@@ -1,23 +1,23 @@
-type t = int32 array
 
+type t = (int * int * int * int) array
 
 let generate_mono_palette (size : int) : t =
   if size <= 0 then raise (Invalid_argument "Palette size must not be zero or negative");
-  Array.init size (fun (index : int): int32 ->
+  Array.init size (fun (index : int) ->
     let fi = float_of_int index and fsize = float_of_int size in
     let ch = ((fi /. fsize) *. 255.0) in
-    Int32.of_int (((int_of_float ch) * 65536) + ((int_of_float ch) * 256) + (int_of_float ch))
+    (int_of_float ch, int_of_float ch, int_of_float ch, 255)
   )
 
 let generate_plasma_palette (size : int) : t =
   if size <= 0 then raise (Invalid_argument "Palette size must not be zero or negative");
-  Array.init size (fun (index : int): int32 ->
+  Array.init size (fun (index : int) ->
     let fi = float_of_int index and fsize = float_of_int size in
     let fred = (cos (fi *. ((2.0 *. Float.pi) /. fsize)) *. 127.0) +. 128.0 in
     let fgreen = (cos ((fi +. (fsize /. 3.0)) *. ((2.0 *. Float.pi) /. fsize)) *. 127.0) +. 128.0 in
     let fblue = (cos ((fi +. ((fsize *. 2.0) /. 3.0)) *. ((2.0 *. Float.pi) /. fsize)) *. 127.0) +. 128.0 in
-
-    Int32.of_int (((int_of_float fred) * 65536) + ((int_of_float fgreen) * 256) + (int_of_float fblue))
+    (int_of_float fblue, int_of_float fgreen, int_of_float fred, 255)
+    (* Int32.of_int ((0xFF lsl 24) lor ((int_of_float fred) lsl 16) lor ((int_of_float fgreen) lsl 8) lor (int_of_float fblue))*)
   )
 
 let string_to_chunks (x : string) (size : int) : string list =
@@ -33,7 +33,15 @@ let string_to_chunks (x : string) (size : int) : string list =
   List.rev (loop [] x)
 
 let chunks_to_colors (raw : string list) : t =
-  Array.map (fun (colorstr : string): int32 -> Int32.of_int (int_of_string ("0x" ^ colorstr))) (Array.of_list raw)
+  Array.of_list raw |>
+  Array.map (fun s ->
+    let v = Int64.of_string s in
+    (Int64.to_int (Int64.logand v 255L),
+      Int64.to_int (Int64.logand (Int64.shift_right v 8) 255L),
+      Int64.to_int (Int64.logand (Int64.shift_right v 16) 255L),
+      Int64.to_int (Int64.logand (Int64.shift_right v 24) 255L)
+    )
+  )
 
 let load_tic80_palette (raw : string) : t =
   let parts = String.split_on_char ':' raw in
@@ -46,16 +54,16 @@ let load_tic80_palette (raw : string) : t =
 let size (palette : t) : int =
     Array.length palette
 
-let index_to_rgb (palette : t) (index : int) : int32 =
+let index_to_rgb (palette : t) (index : int) =
   let palsize = Array.length palette in
   let index = index mod palsize in
   palette.(if index >= 0 then index else index + palsize)
 
-let to_list (palette : t) : int list =
-    List.map Int32.to_int (Array.to_list palette)
+let to_list (palette : t) : (int * int * int * int) list =
+    (Array.to_list palette)
 
-let of_list (rgb_list : int list) : t =
+let of_list (rgb_list : (int * int * int * int) list) : t =
   if List.length rgb_list > 0 then
-    Array.of_list (List.map Int32.of_int rgb_list)
+    Array.of_list rgb_list
   else
     raise (Invalid_argument "Palette size must not be zero or negative")
